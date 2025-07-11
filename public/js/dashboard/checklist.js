@@ -7,16 +7,16 @@ let checklistList = [];
 let editIndex = null;
 let itemToDeleteIndex = null;
 
-const memberId = reponse.headers('memberId');
+const memberId = 'u001';
 // Axios 기본 설정
-const token = localStorage.getItem('auth');
-if ( token === null ) {
-    location.replace('/html/account/login.html');
-}
-axios.defaults.baseURL = 'http://127.0.0.1:7007/api/checklist-service';
-axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
-axios.defaults.headers.common['Content-Type'] = 'application/json';
-axios.defaults.withCredentials = true;
+// const token = localStorage.getItem('auth');
+// if ( token === null ) {
+//     location.replace('/html/account/login.html');
+// }
+ axios.defaults.baseURL = 'http://127.0.0.1:7007/api/checklist-service';
+// axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
+// axios.defaults.headers.common['Content-Type'] = 'application/json';
+//axios.defaults.withCredentials = true;
 
 function pruneChecklistData(year, month) {
     for (const key in checklistData) {
