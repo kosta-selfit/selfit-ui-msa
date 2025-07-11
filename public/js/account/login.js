@@ -1,8 +1,9 @@
 
 $(document).ready(() => {
     // 로그인 버튼 클릭 이벤트
+    const basicDomain = "http://127.0.0.1:8000";
 
-    const redirect_url = "http://54.180.249.146:8880/html/dashboard/dashboard.html"
+    const redirect_url = "/html/dashboard/dashboard.html"
     $("#loginBtn").on("click", () => {
         handleLogin()
     })
@@ -23,7 +24,7 @@ $(document).ready(() => {
 
     // 구글 로그인 팝업 열기 함수
     function openGoogleLoginPopup() {
-        const authUrl = "http://127.0.0.1:8881/oauth2/authorization/google"
+        const authUrl = basicDomain + "/oauth2/authorization/google"
         const popupWidth = 500
         const popupHeight = 600
         const left = (window.innerWidth - popupWidth) / 2
@@ -45,9 +46,9 @@ $(document).ready(() => {
         // 메시지 처리 함수
         function handleAuthMessage(event) {
             // 출처 검증 (필요 시 도메인 추가)
-            if (event.origin !== "http://127.0.0.1:8881" && event.origin !== window.location.origin) {
-                return;
-            }
+            // if (event.origin !== "http://127.0.0.1:8881" && event.origin !== window.location.origin) {
+            //     return;
+            // }
 
             if (event.data) {
                 if (event.data.token) {
@@ -102,11 +103,12 @@ $(document).ready(() => {
 
         // Axios 요청 (form-urlencoded 전송)
         axios
-            .post("http://54.180.249.146:8881/api/account/login-process", {
+            .post(basicDomain + "/api/member-service/login-process", {
                 email: loginId,
                 pw: loginPassword,
             })
             .then((response) => {
+                console.log(response.headers)
                 localStorage.auth = response.headers.selfitkosta
                 showAlert("로그인에 성공했습니다.", "success")
                 // 필요한 경우 리다이렉션
