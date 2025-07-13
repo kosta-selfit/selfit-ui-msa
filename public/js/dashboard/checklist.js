@@ -7,12 +7,13 @@ let checklistList = [];
 let editIndex = null;
 let itemToDeleteIndex = null;
 
+const memberId = reponse.headers('memberId');
 // Axios 기본 설정
 const token = localStorage.getItem('auth');
 if ( token === null ) {
     location.replace('/html/account/login.html');
 }
-axios.defaults.baseURL = 'http://54.180.249.146:8881';
+axios.defaults.baseURL = 'http://127.0.0.1:7007/api/checklist-service';
 axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.withCredentials = true;
@@ -42,13 +43,13 @@ async function loadChecklistBetween(startDate, endDate) {
         }
 
         promises.push(
-            axios.post('/api/dashboard/checklist/items', { checkDate: dateStr })
+            axios.post(`/member/${memberId}`, { checklistDate: dateStr })
                 .then(res => {
                     checklistData[dateStr] = res.data.map(item => ({
-                        checkId: item.checkId,
+                        id: item.id,
                         checklistId: item.checklistId,
-                        text: item.checkContent,
-                        completed: item.isCheck === 1
+                        text: item.checklistContent,
+                        completed: item.isChecked === 1
                     }));
                     if (res.data.length > 0) {
                         checklistIdMap[dateStr] = res.data[0].checklistId;
@@ -72,13 +73,13 @@ async function loadMonthlyChecklist(year, month) {
     for (let day = 1; day <= daysInMonth; day++) {
         const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         promises.push(
-            axios.post('/api/dashboard/checklist/items', {checkDate: date})
+            axios.post(`/member/${memberId}`, {checklistDate: date})
                 .then(res => {
                     checklistData[date] = res.data.map(item => ({
-                        checkId: item.checkId,
+                        id: item.id,
                         checklistId: item.checklistId,
-                        text: item.checkContent,
-                        completed: item.isCheck === 1
+                        text: item.checklistContent,
+                        completed: item.isChecked === 1
                     }));
                     if (res.data.length > 0) {
                         checklistIdMap[date] = res.data[0].checklistId; // ✅ 이 줄 추가
@@ -146,7 +147,7 @@ async function onCheckboxChange(e) {
     const idx = Number(e.target.dataset.index);
     const item = checklistList[idx];
     const completed = !item.completed;
-    await axios.put('/api/dashboard/checklist/item/check', {checkId: item.checkId, isCheck: completed ? 1 : 0});
+    await axios.put(`/item/checklist/member/${memberId}`, {checklistId: item.checklistId, isChecked: completed ? 1 : 0});
     item.completed = completed;
     renderChecklistList();
     calendar.refetchEvents();
@@ -159,8 +160,8 @@ document.getElementById('close-panel-btn').addEventListener('click', async () =>
     // 체크 항목이 없고 checklistId가 있을 경우만 삭제
     if (checklistList.length === 0 && currentChecklistId) {
         try {
-            await axios.delete('/api/dashboard/checklist', {
-                data: { checklistId: currentChecklistId }  // ✅ 객체로 감싸서 보냄
+            await axios.delete(`/item/checklist/member/${memberId}`, {
+                data: { checklistDate: currentSelectedDate }  // ✅ 객체로 감싸서 보냄
             });
 
             // 프론트에서 데이터 제거
@@ -190,16 +191,11 @@ async function onAddOrEdit() {
     if (typeof editIndex === 'number' && checklistList[editIndex]) {
         const item = checklistList[editIndex];
 
-        // 서버에 수정 요청
-        await axios.put('/api/dashboard/checklist/item', {
-            checkId: item.checkId,
-            checkContent: text
-        });
 
         // 로컬 데이터 갱신
         item.text = text;
         checklistList[editIndex] = {
-            checkId: item.checkId,
+            id: item.id,
             checklistId: item.checklistId,
             text: item.text,
             completed: item.completed
@@ -211,14 +207,15 @@ async function onAddOrEdit() {
         document.getElementById('add-check-btn').innerText = '등록';
     } else {
         // 추가 모드
-        const res = await axios.post('/api/dashboard/checklist/item', {
-            checklistId: currentChecklistId,
-            checkContent: text
+        const res = await axios.post(`/item/member/${memberId}`, {
+            checklistDate: currentSelectedDate,
+            checklistContent: text,
+            isChecked: 0
         });
+        currentChecklistId = res.data;
 
         const newItem = {
-            checkId: res.data,
-            checklistId: currentChecklistId,
+            checklistId: res.data,
             text: text,
             completed: false
         };
@@ -238,7 +235,8 @@ async function onAddOrEdit() {
 async function onDeleteConfirmed() {
     if (itemToDeleteIndex === null) return;
     const item = checklistList[itemToDeleteIndex];
-    await axios.delete('/api/dashboard/checklist/item', {data: {checkId: item.checkId}});
+    console.log('삭제 요청 아이템', item);
+    await axios.delete(`/item/checklist/member/${memberId}`, {data: {checklistId: item.checklistId}});
     checklistList.splice(itemToDeleteIndex, 1);
     checklistData[currentSelectedDate] = checklistList;
     renderChecklistList();
@@ -259,15 +257,15 @@ async function onDateClick(info) {
 
     try {
         // 1. 항목 요청
-        const itemsRes = await axios.post('/api/dashboard/checklist/items', {
-            checkDate: currentSelectedDate
+        const itemsRes = await axios.post(`/member/${memberId}`, {
+            checklistDate: currentSelectedDate
         });
 
         checklistList = itemsRes.data.map(item => ({
-            checkId: item.checkId,
+            id: item.id,
             checklistId: item.checklistId,
-            text: item.checkContent,
-            completed: item.isCheck === 1
+            text: item.checklistContent,
+            completed: item.isChecked === 1
         }));
         checklistData[currentSelectedDate] = checklistList;
 
@@ -283,8 +281,8 @@ async function onDateClick(info) {
                 currentChecklistId = checklistIdMap[currentSelectedDate];
             } else {
                 // ✅ 재조회: 항목은 없지만 checklist만 DB에 있을 수도 있으니 재요청해서 확인
-                const retryRes = await axios.post('/api/dashboard/checklist/items', {
-                    checkDate: currentSelectedDate
+                const retryRes = await axios.post(`/member/${memberId}`, {
+                    checklistDate: currentSelectedDate
                 });
 
                 const retryList = retryRes.data;
@@ -292,12 +290,12 @@ async function onDateClick(info) {
                     currentChecklistId = retryList[0].checklistId;
                     checklistIdMap[currentSelectedDate] = currentChecklistId;
                 } else {
-                    // ✅ checklist도 항목도 없음 → 새로 생성
-                    const createRes = await axios.post('/api/dashboard/checklist', {
-                        checkDate: currentSelectedDate
-                    });
-                    currentChecklistId = createRes.data.checklistId;
-                    checklistIdMap[currentSelectedDate] = currentChecklistId;
+                    // // ✅ checklist도 항목도 없음 → 새로 생성
+                    // const createRes = await axios.post(`/item/member/${memberId}`, {
+                    //     checklistDate: currentSelectedDate
+                    // });
+                    // currentChecklistId = createRes.data.id ?? createRes.data;
+                    // checklistIdMap[currentSelectedDate] = currentChecklistId;
                 }
             }
         }
