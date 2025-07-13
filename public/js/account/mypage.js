@@ -1,13 +1,11 @@
 import {showAlertModal, showSuccessModal, showErrorModal} from './basic-modal.js';
-import {response} from "express";
+// import {response} from "express";
 
 $(() => {
     // API 기본 경로 설정
     var board_api_base = '/board/detail';
     const baseUrl = 'http://127.0.0.1:8000'
-    const memberId = response.header("memberId");
-    console.log(memberId);
-
+    const memberId = parseJwt(localStorage.auth);
     // 북마크 데이터와 페이지네이션 변수
     let bookmarkData = [];
     const itemsPerPage = 5; // PAGE_LIMIT와 동일하게 설정
@@ -26,7 +24,7 @@ $(() => {
 
     // 회원 정보 로드 함수
     function loadMemberInfo() {
-        axios.get(`${baseUrl}/api/member-service/member/${memberId}`, {
+        axios.get(baseUrl + `/api/member-service/member/${memberId}`, {
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
             }
@@ -67,7 +65,7 @@ $(() => {
     function loadBookmarks(page) {
         const offset = (page - 1) * itemsPerPage;
 
-        axios.get(`${baseUrl}/api/memeber-service/member/bookmarks/${offset}`, {
+        axios.get(baseUrl + `/api/account/member/bookmarks/${offset}`, {
             headers: {
                 'Content-Type': 'application/json',
                 selfitKosta: `Bearer ${localStorage.auth}`,
@@ -152,7 +150,7 @@ $(() => {
 
     // 회원탈퇴 함수 (실제 API 호출)
     function handleWithdraw() {
-        axios.delete(`${baseUrl}/api/member-service/member/${memberId}`, {
+        axios.delete(`${baseUrl}/api/account/member`, {
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
                 'Content-Type': 'application/json'
@@ -176,7 +174,7 @@ $(() => {
     // 비밀번호 확인 함수 (실제 API 호출)
     function verifyPassword(password) {
         return new Promise((resolve, reject) => {
-            axios.post(`${baseUrl}/api/member-service/check-pw/member/${memberId}`, {'pw': password}, {
+            axios.post(baseUrl + '/api/account/member/check-pw', {'pw': password}, {
                 headers: {
                     selfitKosta: `Bearer ${localStorage.auth}`,
                     'Content-Type': 'application/json'
