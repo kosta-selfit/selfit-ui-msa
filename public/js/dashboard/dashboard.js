@@ -14,7 +14,25 @@ document.addEventListener("DOMContentLoaded", () => {
         location.replace('/html/account/login.html');
     }
 
-    axios.defaults.baseURL = 'http://54.180.249.146:8881';
+    // 토큰에서 memberId 추출 함수
+    function getMemberIdFromToken(token) {
+        try {
+            const payloadBase64 = token.split('.')[1];
+            const payload = JSON.parse(atob(payloadBase64));
+            return payload.memberId;
+        } catch (e) {
+            console.error("JWT 파싱 실패:", e);
+            return null;
+        }
+    }
+
+    const memberId = getMemberIdFromToken(token);
+    if (!memberId) {
+        alert("인증 정보가 유효하지 않습니다.");
+        location.replace('/html/account/login.html');
+    }
+
+    axios.defaults.baseURL = 'http://127.0.0.1:8000/api';
     axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
     axios.defaults.headers.common['Content-Type'] = 'application/json';
     axios.defaults.withCredentials = true;
@@ -43,8 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // ------------------------------
     async function fetchTodayBmr() {
         try {
-            const response = await axios.post(
-                "/api/dashboard/bmr",
+            const response = await axios.get(
+                `/member-service/member/`+memberId,
                 {}
             );
             return response.data.bmr;
@@ -56,11 +74,11 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchIntakeForDate(dateStr) {
         try {
             const response = await axios.post(
-                "/api/dashboard/food/kcal",
+                `/food-service/kcal/member/`+memberId,
                 { intakeDate: dateStr }
             );
             // 백엔드에서 { intakeSum: number } 형태로 응답한다고 가정
-            return response.data.intakeSum ?? 0;
+            return response.data.intakeKcalSum ?? 0;
         } catch (err) {
             throw new Error("오늘 섭취 합계 조회 실패");
         }
@@ -69,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchExerciseForDate(dateStr) {
         try {
             const response = await axios.post(
-                "/api/dashboard/exercise/kcal",
+                `/exercise-service/kcal/member/`+memberId,
                 { exerciseDate: dateStr }
             );
             // 백엔드에서 { exerciseSum: number } 형태로 응답한다고 가정
@@ -85,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchTodayFoodList(dateStr) {
         try {
             const response = await axios.post(
-                "/api/dashboard/foods",
+                `/food-service/foods/member/`+memberId,
                 { intakeDate: dateStr }
             );
             return response.data;
@@ -97,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchTodayExerciseList(dateStr) {
         try {
             const response = await axios.post(
-                "/api/dashboard/exercises",
+                `/exercise-service/exercises/member/`+memberId,
                 { exerciseDate: dateStr }
             );
             return response.data;
@@ -112,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchYearIntakeCompare(year) {
         try {
             const response = await axios.post(
-                "/api/dashboard/food/kcal/avg/year",
+                `/food-service/avg/year/member/`+memberId,
                 { intakeYear: parseInt(year) }
             );
             return response.data;
@@ -124,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchYearExerciseCompare(year) {
         try {
             const response = await axios.post(
-                "/api/dashboard/exercise/kcal/avg/year",
+                `exercise-service/avg/year/member/`+memberId,
                 { exerciseYear: parseInt(year) }
             );
             return response.data;
@@ -332,8 +350,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchYearIntakeMy(year) {
         try {
             const response = await axios.post(
-                "/api/dashboard/food/kcal/year",
-                { intakeYear: parseInt(year) }
+                `/food-service/kcal/year/member/`+memberId,
+                { year: parseInt(year) }
             );
             // 백엔드에서 [{ intakeDate: "YYYY-MM-DD", intakeSum: number }, …] 형태로 응답한다고 가정
             return response.data;
@@ -345,8 +363,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchYearIntakeAvg(year) {
         try {
             const response = await axios.post(
-                "/api/dashboard/food/kcal/avg/year",
-                { intakeYear: parseInt(year) }
+                `/food-service/avg/year/member/`+memberId,
+                { year: parseInt(year) }
             );
             // 백엔드에서 [{ intakeDate: "YYYY-MM-DD", avgIntakeKcal: number }, …] 형태로 응답한다고 가정
             return response.data;
@@ -358,8 +376,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchYearExerciseMy(year) {
         try {
             const response = await axios.post(
-                "/api/dashboard/exercise/kcal/year",
-                { exerciseYear: parseInt(year) }
+                `/exercise-service/year/member/`+memberId,
+                { year: parseInt(year) }
             );
             // 백엔드에서 [{ exerciseDate: "YYYY-MM-DD", exerciseSum: number }, …] 형태로 응답한다고 가정
             return response.data;
@@ -371,8 +389,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchYearExerciseAvg(year) {
         try {
             const response = await axios.post(
-                "/api/dashboard/exercise/kcal/avg/year",
-                { exerciseYear: parseInt(year) }
+                `/exercise-service/avg/year/member/`+memberId,
+                { year: parseInt(year) }
             );
             // 백엔드에서 [{ EXERCISE_DATE: "YYYY-MM-DD", avgKcal: number }, …] 형태로 응답한다고 가정
             return response.data;
@@ -410,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const dateKey = item.intakeDate;
                 if (!dateKey) return;
                 mapByDate[dateKey] = {
-                    my: item.intakeSum ?? 0,
+                    my: item.intakeKcalSum ?? 0,
                     avg: 0
                 };
             });
@@ -658,8 +676,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const today = getTodayString(); // 오늘 날짜를 구해서
         try {
             const response = await axios.post(
-                "/api/dashboard/checklist/items",
-                { checkDate: today }
+                `/checklist-service/member/`+memberId,
+                { checklistDate: today }
             );
             return response.data;
         } catch (err) {
@@ -708,10 +726,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const newValue = checkbox.checked ? 1 : 0;
                 try {
                     await axios.put(
-                        "/api/dashboard/checklist/item/check",
+                        `/checklist-service/item/checklist/member/`+memberId,
                         {
-                            checkId: item.checkId,
-                            isCheck: newValue
+                            checklistId: item.checkId,
+                            isChecked: newValue
                         }
                     );
                 } catch (err) {
