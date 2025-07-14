@@ -4,6 +4,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (auth === null) {
         location.replace('/html/account/login.html');
     }
+    // JWT에서 memberId 추출
+    function getMemberIdFromToken() {
+        try {
+            const payload = auth.split('.')[1];
+            const decoded = JSON.parse(atob(payload));
+            return decoded.memberId;
+        } catch (err) {
+            console.error("❌ JWT 파싱 실패:", err);
+            return null;
+        }
+    }
+
+    // 전역 memberId 변수 설정
+    window.memberId = getMemberIdFromToken();
+
+    if (!window.memberId) {
+        alert("memberId가 토큰에 존재하지 않습니다.");
+        location.replace("/html/account/login.html");
+        return;
+    }
 });
 // -----------------------------
 // Axios 기본 설정
@@ -22,7 +42,7 @@ let foodList = [];     // 현재 패널에 보여줄, 선택된 날짜의 음식
 let itemToDelete = null;
 let editIndex = null;
 // const memberId = response.headers('memberId');
-const memberId = '9072eb26-0e14-4ecb-b28b-842c1b403bb6'
+// const memberId = '9072eb26-0e14-4ecb-b28b-842c1b403bb6'
 
 // 날짜별 생성된 foodId 저장
 const foodIdByDate = {}; // { "2025-06-03": 123, ... }
