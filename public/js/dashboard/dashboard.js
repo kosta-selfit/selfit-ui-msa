@@ -718,7 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // 체크박스 생성
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
-            checkbox.id = `check-${item.checkId}`;
+            checkbox.id = `check-${item.checklistId}`;
             checkbox.checked = item.isCheck === 1;
 
             // 체크/해제 시 서버로 PUT 요청
@@ -728,7 +728,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     await axios.put(
                         `/checklist-service/item/checklist/member/`+memberId,
                         {
-                            checklistId: item.checkId,
+                            checklistId: item.checklistId,
                             isChecked: newValue
                         }
                     );
@@ -741,8 +741,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // 라벨 생성
             const label = document.createElement("label");
-            label.setAttribute("for", `check-${item.checkId}`);
-            label.innerText = item.checkContent || "내용 없음";
+            label.setAttribute("for", `check-${item.checklistId}`);
+            label.innerText = item.checklistContent || "내용 없음";
             if (item.isCheck === 1) {
                 label.style.textDecoration = "line-through";
                 label.style.color = "#9ca3af";
