@@ -1,10 +1,11 @@
 import {showAlertModal, showSuccessModal, showErrorModal} from './basic-modal.js';
+// import {response} from "express";
 
 $(() => {
     // API 기본 경로 설정
     var board_api_base = '/board/detail';
-    const baseUrl = 'http://54.180.249.146:8881'
-
+    const baseUrl = 'http://127.0.0.1:8000'
+    const memberId = parseJwt(localStorage.auth);
     // 북마크 데이터와 페이지네이션 변수
     let bookmarkData = [];
     const itemsPerPage = 5; // PAGE_LIMIT와 동일하게 설정
@@ -23,7 +24,7 @@ $(() => {
 
     // 회원 정보 로드 함수
     function loadMemberInfo() {
-        axios.get(baseUrl + '/api/account/member', {
+        axios.get(baseUrl + `/api/member-service/member/${memberId}`, {
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
             }
