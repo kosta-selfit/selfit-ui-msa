@@ -1,14 +1,34 @@
 // food.js (백엔드 연동 통합 버전, 수정판)
-
 document.addEventListener('DOMContentLoaded', () => {
     const auth = localStorage.getItem('auth');
     if (auth === null) {
         location.replace('/html/account/login.html');
     }
+    // JWT에서 memberId 추출
+    function getMemberIdFromToken() {
+        try {
+            const payload = auth.split('.')[1];
+            const decoded = JSON.parse(atob(payload));
+            return decoded.memberId;
+        } catch (err) {
+            console.error("❌ JWT 파싱 실패:", err);
+            return null;
+        }
+    }
+
+    // 전역 memberId 변수 설정
+    window.memberId = getMemberIdFromToken();
+
+    if (!window.memberId) {
+        alert("memberId가 토큰에 존재하지 않습니다.");
+        location.replace("/html/account/login.html");
+        return;
+    }
 });
 // -----------------------------
 // Axios 기본 설정
 // -----------------------------
+axios.defaults.baseURL = 'http://127.0.0.1:8000/api/food-service';
 axios.defaults.headers.common['Content-Type'] = "application/json";
 axios.defaults.withCredentials = true;
 
@@ -17,14 +37,15 @@ axios.defaults.withCredentials = true;
 // -----------------------------
 let calendar;
 let selectedDate = null;
-let foodMap = {};      // { "YYYY-MM-DD": [ { foodInfoId, foodName, amount, cal }, ... ] }
+let foodMap = {};      // { "YYYY-MM-DD": [ { foodId, foodName, amount, cal }, ... ] }
 let foodList = [];     // 현재 패널에 보여줄, 선택된 날짜의 음식 목록
 let itemToDelete = null;
 let editIndex = null;
+// const memberId = response.headers('memberId');
+// const memberId = '9072eb26-0e14-4ecb-b28b-842c1b403bb6'
 
-// 날짜별 생성된 foodNoteId 저장
-const foodNoteIdByDate = {}; // { "2025-06-03": 123, ... }
-// const memberId = window.memberId; // (서버에서 주입되었다고 가정)
+// 날짜별 생성된 foodId 저장
+const foodIdByDate = {}; // { "2025-06-03": 123, ... }
 
 // 음식명, 수량, 단위, 자동완성 리스트 엘리먼트 참조
 const nameInput = document.getElementById('food-name');
@@ -33,7 +54,7 @@ const unitEl = document.getElementById('food-unit');
 const listEl = document.getElementById('autocomplete-list');
 
 // =======================================
-// 1) ApexCharts를 이용한 “식단 그래프” 초기화
+// 1) ApexCharts 이용한 “식단 그래프” 초기화
 // =======================================
 (function () {
     function setupYearDropdown() {
@@ -68,26 +89,59 @@ const listEl = document.getElementById('autocomplete-list');
         });
     }
 
+    // function fetchYearlyIntake(year) {
+    //     return axios.post(`/kcal/year/member/${memberId}`, { year: year },
+    //         {
+    //             headers: {
+    //                 'selfitKosta': localStorage.auth
+    //             },
+    //
+    //         }
+    //     )
+    //         .then(res => {
+    //             const rawList = res.data || [];
+    //             return rawList.map(item => {
+    //                 // item.intakeDate는 "2025-06-03" 같은 문자열
+    //                 const date = new Date(item.intakeDate + 'T00:00:00');
+    //                 // (필요하면 보정)
+    //                 date.setDate(date.getDate() + 1);
+    //                 return { x: date, y: item.intakeKcalSum };
+    //             });
+    //         });
+    // }
     function fetchYearlyIntake(year) {
-        return axios.post('http://54.180.249.146:8881/api/dashboard/food/kcal/year', { intakeYear: year },
-            {
-                headers: {
-                    'selfitKosta': localStorage.auth
-                },
-
+        return axios.post(`/kcal/year/member/${memberId}`, { year: year }, {
+            headers: {
+                'selfitKosta': localStorage.auth
             }
-        )
+        })
             .then(res => {
                 const rawList = res.data || [];
-                return rawList.map(item => {
-                    // item.intakeDate는 "2025-06-03" 같은 문자열
-                    const date = new Date(item.intakeDate + 'T00:00:00');
-                    // (필요하면 보정)
-                    date.setDate(date.getDate() + 1);
-                    return { x: date, y: item.intakeSum };
-                });
+                return rawList
+                    .map(item => {
+                        const dateStr = item.intakeDate;
+                        const kcal = item.intakeKcalSum;
+
+                        if (!dateStr) {
+                            console.warn("❗ 날짜 없음 → 건너뜀:", item);
+                            return null;
+                        }
+
+                        const dateObj = new Date(dateStr);
+                        if (isNaN(dateObj.getTime())) {
+                            console.warn("❗ Invalid Date → 건너뜀:", dateStr);
+                            return null;
+                        }
+
+                        return {
+                            x: dateObj.toISOString(),   // 안전하게 변환
+                            y: kcal != null ? kcal : 0  // null이면 0으로 처리
+                        };
+                    })
+                    .filter(item => item !== null);
             });
     }
+
 
     document.addEventListener("DOMContentLoaded", function () {
         setupYearDropdown();
@@ -187,6 +241,24 @@ const listEl = document.getElementById('autocomplete-list');
             }, 100);
         });
 
+        chart.render().then(() => {
+            const recent7 = new Date();
+            recent7.setDate(today.getDate() - 6);
+            const recent7Time = recent7.getTime();
+
+            // 데이터가 없을 경우에도 최소 범위 줌
+            if (seriesData.length === 0) {
+                chart.zoomX(xMin, xMax);
+                return;
+            }
+
+            if (selectedYear === today.getFullYear()) {
+                chart.zoomX(recent7Time, xMax);
+            } else {
+                chart.zoomX(xMin, xMax);
+            }
+        });
+
         chart.addEventListener("zoomed", function (_ctx, { xaxis }) {
             const min = Math.max(xaxis.min, xMin);
             const max = Math.min(xaxis.max, xMax);
@@ -225,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 while (cursor < endDate) {
                     const dateStr = cursor.toISOString().split('T')[0];
                     const req = axios
-                        .post('http://54.180.249.146:8881/api/dashboard/food/kcal', { intakeDate: dateStr },
+                        .post(`/kcal/member/${memberId}`, { intakeDate: dateStr },
                             {
                                 headers: {
                                     'selfitKosta': localStorage.auth
@@ -285,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // (3) 식단 노트 생성/조회 (POST /api/dashboard/food/list)
             try {
-                const noteRes = await axios.post('http://54.180.249.146:8881/api/dashboard/food/list', {
+                const noteRes = await axios.post(`/foods/member/${memberId}`, {
                     intakeDate: selectedDate
                 },{
                         headers: {
@@ -294,20 +366,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     }
                 );
-                // 새로 생성되면 foodNoteId를 받아서 저장
-                const { foodNoteId } = noteRes.data;
-                foodNoteIdByDate[selectedDate] = foodNoteId;
+                // 새로 생성되면 foodId를 받아서 저장
+                const { foodId } = noteRes.data;
+                foodIdByDate[selectedDate] = foodId;
             } catch (err) {
                 // 이미 해당 날짜에 노트가 있으면 예외가 발생할 수 있다.
                 // 이 경우에는 “이미 존재”라는 메시지를 무시만 하고 넘어간다.
                 console.warn("식단 노트가 이미 존재합니다(생성 건너뜀):", err.response?.data?.message || err);
-                // foodNoteIdByDate[selectedDate] 값은 이전에 저장된 게 있거나, undefined일 수 있다.
+                // foodIdByDate[selectedDate] 값은 이전에 저장된 게 있거나, undefined일 수 있다.
             }
 
             // (4) 해당 날짜 식단 목록 조회 (POST /api/dashboard/foods)
             let totalForClickedDay = 0;
             try {
-                const resp = await axios.post('http://54.180.249.146:8881/api/dashboard/foods', {
+                const resp = await axios.post(`/foods/member/${memberId}`, {
                     intakeDate: selectedDate
                 },
                     {
@@ -320,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // resp.data는 배열(여러 건)로 내려온다.
                 // 아래 map()으로 “무조건 배열 전체”를 foodList로 변환한다.
                 foodList = resp.data.map(f => ({
-                    foodInfoId: f.foodInfoId,
+                    foodId: f.foodId,
                     foodName:   f.foodName,
                     amount:     `${f.intake}`,
                     cal:        f.intakeKcal
@@ -384,7 +456,7 @@ nameInput.addEventListener('input', async function () {
     }
 
     try {
-        const res = await axios.post('http://54.180.249.146:8881/api/dashboard/food/openSearch', {
+        const res = await axios.post('/open-search', {
             keyword: keyword,
             pageNo:  1,
             numOfRows: 100
@@ -506,9 +578,9 @@ document.getElementById('add-food-btn').addEventListener('click', async function
         const item = foodList[editIndex];
         try {
             // PUT /api/dashboard/food
-            await axios.put('http://54.180.249.146:8881/api/dashboard/food', {
-                foodInfoId: item.foodInfoId,
-                newIntake:  amount
+            await axios.put(`/member/${memberId}`, {
+                foodId: item.foodId,
+                intake:  amount
             },{
                     headers: {
                         'selfitKosta': localStorage.auth
@@ -550,15 +622,15 @@ document.getElementById('add-food-btn').addEventListener('click', async function
     // (B) 신규 등록 모드
     else {
         try {
-            const foodNoteId = foodNoteIdByDate[selectedDate];
-            if (!foodNoteId) {
-                alert("음식 노트 ID가 없습니다. 날짜를 다시 눌러주세요.");
-                return;
-            }
+            const foodId = foodIdByDate[selectedDate];
+            // if (!foodId) {
+            //     alert("음식 노트 ID가 없습니다. 날짜를 다시 눌러주세요.");
+            //     return;
+            // }
 
             // POST /api/dashboard/food
-            await axios.post('http://54.180.249.146:8881/api/dashboard/food', {
-                foodNoteId: foodNoteId,
+            await axios.post(`/member/${memberId}`, {
+                intakeDate: selectedDate,
                 foodName:   name,
                 intake:     amount,
                 unitKcal:   calPerUnit
@@ -572,7 +644,7 @@ document.getElementById('add-food-btn').addEventListener('click', async function
             );
             // 로컬 반영
             foodList.push({
-                foodInfoId: -1,  // 실제 서버 반환값을 받으면 교체
+                foodId: -1,  // 실제 서버 반환값을 받으면 교체
                 foodName:   name,
                 amount:     `${amount}${unit}`,
                 cal:        intakeKcal
@@ -677,12 +749,12 @@ document.getElementById('confirm-delete-btn').addEventListener('click', async fu
     const item = foodList[itemToDelete];
     try {
         // DELETE /api/dashboard/food
-        await axios.delete('http://54.180.249.146:8881/api/dashboard/food', {
+        await axios.delete(`/member/${memberId}`, {
             headers: {
                 'selfitKosta': localStorage.auth
             },
             data: {
-                foodInfoId: item.foodInfoId
+                foodId: item.foodId
             }
         });
 
