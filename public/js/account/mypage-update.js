@@ -3,8 +3,25 @@ import {getDownloadURL, ref, uploadBytes} from "https://www.gstatic.com/firebase
 import {storage} from "../board/firebaseConfig.js";
 
 // API 엔드포인트 설정
-const API_BASE_URL = "http://54.180.249.146:8881/api/account"
+const API_BASE_URL = "http://127.0.0.1:8000/api"
+const memberId = parseJwt(localStorage.auth);
 
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1]; // payload 부분
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(jsonPayload).memberId; // payload 객체
+    } catch (e) {
+        console.error("Invalid token:", e);
+        return null;
+    }
+}
 // 폼 상태 관리 - 원본 데이터와 현재 데이터 분리
 const originalData = {
     email: null,
@@ -51,7 +68,7 @@ let profileImageUpload = {
 
 async function getMemberInfoAPI() {
     try {
-        const response = await axios.get(`${API_BASE_URL}/member`, {
+        const response = await axios.get(`${API_BASE_URL}/member-service/member/${memberId}`, {
             timeout: 10000,
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
@@ -75,7 +92,7 @@ async function checkNicknameDuplicateAPI(nickname) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/check-nickname`, requestData, {
+        const response = await axios.post(`${API_BASE_URL}/member-service/check-nickname`, requestData, {
             timeout: 10000,
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
@@ -94,7 +111,7 @@ async function checkNicknameDuplicateAPI(nickname) {
 
 async function updateMemberAPI(userData) {
     try {
-        const response = await axios.put(`${API_BASE_URL}/member`, userData, {
+        const response = await axios.put(`${API_BASE_URL}/member-service/member/${memberId}`, userData, {
             timeout: 15000,
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
