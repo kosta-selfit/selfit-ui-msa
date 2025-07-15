@@ -1,11 +1,37 @@
 console.log('boardDetail.js 진입');
 import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
-axios.defaults.baseURL = 'http://54.180.249.146:8881';
-axios.defaults.headers.common['Content-Type'] = 'application/json';
+// axios.defaults.baseURL = 'http://54.180.249.146:8881';
+axios.defaults.baseURL = 'http://127.0.0.1:8000';
+// axios.defaults.headers.common['Content-Type'] = 'application/json';
+// JWT 디코딩 함수
+function decodeJwt(token) {
+    const jwt = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const parts = jwt.split('.');
+    if (parts.length !== 3) throw new Error('잘못된 JWT 형식');
+    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = payloadB64.length % 4;
+    const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64;
+    const json = atob(padded);
+    return JSON.parse(json);
+}
 
-const token = localStorage.getItem('auth');
 const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
-const boardId = parseInt(hashParams.get('boardId'), 10);
+const boardId = hashParams.get('boardId');
+const token   = localStorage.getItem('auth');        // "Bearer eyJh..."
+
+// JWT 페이로드에서 memberId 추출
+let memberId;
+try {
+    const payload = decodeJwt(token);
+    memberId = payload.memberId;
+} catch (e) {
+    console.error('JWT 디코딩 실패', e);
+    memberId = null;
+}
+
+console.log('boardId :', boardId);
+console.log('memberId :', memberId);
+
 const commentsPerPage = 5;
 
 let currentCommentPage = 1;
@@ -32,26 +58,26 @@ function init() {
     const bookmarkIcon = bookmarkBtn.querySelector('i');
 
     axios.get(
-        `/api/board/${boardId}`,
+        `/api/board-service/${boardId}/member/${memberId}`,
         {
             headers: {
-                selfitKosta: token ? `Bearer ${token}` : ''
+                selfitKosta: token
             }
         }
     )
         .then(response => {
-            const board           = response.data.board;
-            const currentUserId   = response.data.currentUserId;
+            const board           = response.data;
             const isBookmarked    = response.data.myBookmarkCount > 0;
 
+            console.log('글쓴이 Id:', board.memberId, "로그인 memberId", memberId);
             // 소유자 버튼 표시
-            if (board.memberId === currentUserId) {
+            if (board.memberId === memberId) {
                 ownerButtons.style.display = 'block';
             }
 
             // 수정 버튼
             editBtn.onclick = () => {
-                location.hash = `/board/edit?boardId=${boardId}`;
+                location.hash = `/board-service/edit?boardId=${boardId}`;
             };
 
             // 삭제 버튼
@@ -59,7 +85,7 @@ function init() {
                 if (!confirm('정말 삭제하시겠습니까?')) return;
                 try {
                     await axios.delete(
-                        `/api/board/delete/${boardId}`,
+                        `/api/board-service/${boardId}/member/${memberId}`,
                         {
                             headers: {
                                 selfitKosta: token ? `Bearer ${token}` : ''
@@ -67,7 +93,7 @@ function init() {
                         }
                     );
                     alert('삭제되었습니다.');
-                    location.hash = `/board/list?categoryId=${board.categoryId}`;
+                    location.hash = `/api/board-service/list/1/${board.categoryName}`;
                 } catch (err) {
                     alert('삭제 중 오류 발생');
                     console.error(err);
@@ -92,25 +118,35 @@ function init() {
         if (!token) return window.location.href = '/login';
 
         axios.post(
-            `/api/board/comment/add`,
-            { boardId, commentContent: content },
-            { headers: { selfitKosta: `Bearer ${token}` } }
+            `/api/comment-service/board/${boardId}/comment/member/${memberId}`,
+            { commentContent: content },
+            {
+                headers: {
+                    selfitKosta: token
+                }
+            }
         ).then(() => {
             input.value = '';
             currentCommentPage = 1;
+            console.log(content);
             fetchAndRenderComments(currentCommentPage);
         }).catch(err => {
             console.error('댓글 등록 실패', err);
             alert('댓글 등록 중 오류 발생');
         });
     }
-
     function fetchAndRenderComments(page) {
-        axios.get('/api/board/comments', {
-            params: { boardId, page }
-        }).then(res => {
+        axios.get(`/api/comment-service/board/${boardId}/comments/${page}`,
+            {
+            headers: {
+                selfitKosta: token
+            }
+        }
+        ).then(res => {
             const comments = res.data;
             const total = comments[0]?.totalCount || 0;
+
+            console.log(comments);
             renderComments(commentList, comments);
             renderCommentPagination(pagination, total);
             elCommentCount.innerHTML = `<i class="bi bi-chat-dots"></i> ${total}`;
@@ -192,15 +228,23 @@ function init() {
     }
 
     function initBookmarkButton(btn, icon, boardId, isBookmarked) {
+        // 초기 아이콘 세팅
         setBookmarkIcon(isBookmarked);
 
         btn.onclick = async () => {
             if (!token) return window.location.href = '/html/account/login.html';
             try {
-                const res = await axios.post(`/api/board/bookmark/${boardId}`, {}, {
-                    headers: { selfitKosta: `Bearer ${token}` }
-                });
-                setBookmarkIcon(res.data);
+                const res = await axios.put(
+                    `/api/board-service/bookmark/${boardId}/member/${memberId}`,
+                    {}, // body 없으면 빈 객체
+                    { headers: { selfitKosta: token.startsWith('Bearer ') ? token : `Bearer ${token}` } }
+                );
+
+                // res.data.message 에 'true' 또는 'false' 문자열이 들어 있으니
+                // Boolean 으로 변환
+                const active = res.data.message === 'true';
+                console.log('북마크 토글 결과:', active);
+                setBookmarkIcon(active);
             } catch (err) {
                 console.error('북마크 실패', err);
                 alert('북마크 오류');
