@@ -2,12 +2,14 @@ import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
 
 export async function initHeader() {
     await fetchMemberInfo();
-    await fetchCategoryList();
+    await initCategoryList();
     openGroupByURL();
     setActiveDashboardItem();
     bindMenuLabelToggle();
     bindAuthButtons();
     bindAllDataLinks();
+
+    console.log('bindMenuLabelToggle:', document.querySelector('.sideBar'));
 }
 
 // 로그아웃 기능
@@ -81,7 +83,7 @@ function bindAllDataLinks() {
             // SPA 내에서 community 쪽은 해시만 바꾸고
             if (el.closest('[data-group="community"]')) {
                 const h = el.getAttribute('data-href').match(/categoryId=\d+/)[0];
-                location.hash = `/board/list?${h}`;
+                location.hash = `/board-service/list?${h}`;
             }
             // 그 외에는 그냥 href 로 이동
             else {
@@ -97,7 +99,7 @@ function openGroupByURL() {
     document.querySelectorAll('.menu-item.has-children').forEach(item => {
         const grp = item.dataset.group;
         const sub = item.querySelector('.submenu');
-        if ((grp === 'community' && path.includes('/board/')) ||
+        if ((grp === 'community' && path.includes('/board-service/')) ||
             (grp === 'dashboard' && path.startsWith('/dashboard/'))) {
             item.classList.add('open','active');
             if (sub) sub.style.maxHeight = sub.scrollHeight + 'px';
@@ -118,35 +120,38 @@ function setActiveDashboardItem() {
     });
 }
 
-// Community 카테고리 목록
-function fetchCategoryList() {
-    return axios.get('http://54.180.249.146:8881/api/category')
-        .then(res => {
-            const list = res.data;
-            const menu = document.querySelector('[data-group="community"] .submenu');
-            if (!menu) return;
-            menu.innerHTML = '';
+const CATEGORIES = [
+    { categoryName: '식단' },
+    { categoryName: '운동' },
+    { categoryName: '자유' },
+];
 
-            list.forEach(cat => {
-                const d = document.createElement('div');
-                d.className   = 'submenu-item';
-                d.textContent = cat.categoryName;
-                d.addEventListener('click', () => {
-                    const isStaticDashboard = window.location.pathname.includes('/dashboard/');
-                    if (isStaticDashboard) {
-                        // 일반 HTML 대시보드에서 SPA로 강제 이동
-                        window.location.href = `/html/spa.html#/board/list?categoryId=${cat.categoryId}`;
-                    } else {
-                        // SPA 내에서 해시만 바꿔서 뷰 전환
-                        location.hash = `/board/list?categoryId=${cat.categoryId}`;
-                    }
-                });
-                menu.appendChild(d);
-            });
-        })
-        .catch(err => {
-            console.error('카테고리 불러오기 실패:', err);
+// Community 카테고리 목록
+function initCategoryList() {
+    const menu = document.querySelector(
+        '.sideBar .menu-item.has-children[data-group="community"] > .submenu'
+    );
+    if (!menu) return;
+    menu.innerHTML = '';
+    console.log(CATEGORIES);
+
+    CATEGORIES.forEach(cat => {
+        const d = document.createElement('div');
+        d.className = 'submenu-item';
+        d.textContent = cat.categoryName;
+
+        d.addEventListener('click', () => {
+            const isStaticDashboard = window.location.pathname.includes('/dashboard/');
+            if (isStaticDashboard) {
+                // 일반 HTML 대시보드에서 SPA로 강제 이동
+                window.location.href = `/html/spa.html#/board-service/list/categoryName=${cat.categoryName}`;
+            } else {
+                // SPA 내에서 해시만 바꿔서 뷰 전환
+                location.hash = `/board-service/list/categoryName=${cat.categoryName}`;
+            }
         });
+        menu.appendChild(d);
+    });
 }
 
 // 메뉴 레이블 토글
