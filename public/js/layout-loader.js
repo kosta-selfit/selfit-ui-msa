@@ -22,6 +22,18 @@ async function loadLayoutFragment() {
         } else {
             console.warn('layout-container not found or fragment content missing');
         }
+
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.type    = 'module';
+            s.src     = '/js/header.js';
+            s.onload  = () => {
+                initHeader();
+                resolve();
+            };
+            s.onerror = reject;
+            document.body.appendChild(s);
+        });
     } catch (err) {
         console.error('layout fragment 로드 실패:', err);
     }

@@ -1,4 +1,20 @@
 // exercise.js
+function parseJwtMemberId(token) {
+    if (!token) return null;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        return payload.memberId;
+    } catch { return null; }
+}
+
+const token = localStorage.getItem('auth');
+if (!token) location.replace('/html/account/login.html');
+
+const memberId = parseJwtMemberId(token);
+if (!memberId) {
+    localStorage.removeItem('auth');
+    location.replace('/html/account/login.html');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const auth = localStorage.getItem('auth');
@@ -6,9 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
         location.replace('/html/account/login.html');
     }
 });
+
 // -----------------------------
 // Axios 기본 설정
 // -----------------------------
+const BASE = 'http://127.0.0.1:8000/api/exercise-service';
+axios.defaults.baseURL = BASE;
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['selfitKosta'] = localStorage.auth;
@@ -18,7 +37,7 @@ axios.defaults.headers.common['selfitKosta'] = localStorage.auth;
 // -----------------------------
 let calendar;
 let selectedDate = null;
-let exerciseNoteId = null;       // 클릭된 날짜의 ExerciseNote ID
+//let exerciseNoteId = null;       // 클릭된 날짜의 ExerciseNote ID
 let exerciseMap = {};            // { "YYYY-MM-DD": [ { id, name, amount, cal }, … ] }
 let exerciseList = [];           // 현재 패널에 보여줄, 선택된 날짜의 운동 목록
 let editIndex = null;            // 편집 중인 인덱스
@@ -69,7 +88,7 @@ const listEl = document.getElementById('autocomplete-list');
     }
 
     function fetchYearlyKcal(year) {
-        return axios.post('http://54.180.249.146:8881/api/dashboard/exercise/kcal/year', { exerciseYear: year },
+        return axios.post(`/year/member/${memberId}`, { year },
             {
                 headers: {
                     'selfitKosta': localStorage.auth
@@ -219,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 while (cursor < endDate) {
                     const dateStr = cursor.toISOString().split('T')[0];
                     const req = axios
-                        .post('http://54.180.249.146:8881/api/dashboard/exercise/kcal', { exerciseDate: dateStr },
+                        .post(`/kcal/member/${memberId}`, { exerciseDate: dateStr },
                     {
                         headers: {
                             'selfitKosta': localStorage.auth
@@ -267,28 +286,28 @@ document.addEventListener('DOMContentLoaded', function () {
             selectedName = "";
             selectedMet = 0;
 
-            // 노트 생성/조회
-            try {
-                const noteRes = await axios.post('http://54.180.249.146:8881/api/dashboard/exercise/list', {
-                    exerciseDate: selectedDate
-                },
-                    {
-                        headers: {
-                            'selfitKosta': localStorage.auth
-                        },
-
-                    }
-                );
-                exerciseNoteId = noteRes.data.exerciseNoteId;
-            } catch (err) {
-                console.warn("운동 노트 생성 또는 조회 실패:", err.response?.data?.message || err);
-                exerciseNoteId = null;
-            }
+            // // 노트 생성/조회
+            // try {
+            //     const noteRes = await axios.post(`/member/${memberId}`, {
+            //         exerciseDate: selectedDate
+            //     },
+            //         {
+            //             headers: {
+            //                 'selfitKosta': localStorage.auth
+            //             },
+            //
+            //         }
+            //     );
+            //     exerciseNoteId = noteRes.data.exerciseNoteId;
+            // } catch (err) {
+            //     console.warn("운동 노트 생성 또는 조회 실패:", err.response?.data?.message || err);
+            //     exerciseNoteId = null;
+            // }
 
             // 해당 날짜 운동 목록 조회
             let totalForClickedDay = 0;
             try {
-                const res2 = await axios.post('http://54.180.249.146:8881/api/dashboard/exercises', {
+                const res2 = await axios.post(`/exercises/member/${memberId}`, {
                     exerciseDate: selectedDate
                 },
                     {
@@ -298,9 +317,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     }
                 );
+
+
                 const serverList = res2.data || [];
                 exerciseList = serverList.map(item => ({
-                    id: item.exerciseInfoId,
+                    exerciseId: item.exerciseId,
                     name: item.exerciseName,
                     amount: `${item.exerciseMin}분`,
                     cal: item.exerciseKcal
@@ -313,6 +334,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 exerciseMap[selectedDate] = [];
                 totalForClickedDay = 0;
             }
+
+
+
 
             // 패널 목록 렌더
             renderExerciseList();
@@ -354,7 +378,7 @@ nameInput.addEventListener('input', async function (e) {
     }
 
     try {
-        const res = await axios.post('http://54.180.249.146:8881/api/dashboard/exercise/openSearch', {
+        const res = await axios.post('/open-search', {
             keyword: keyword,
             pageNo: 1,
             numOfRows: 100,
@@ -464,22 +488,22 @@ document.getElementById('add-exercise-btn').addEventListener('click', async func
             alert("분량(분)을 올바르게 입력해주세요.");
             return;
         }
-        if (!exerciseNoteId) {
-            alert("노트 ID가 없습니다. 날짜를 다시 클릭해주세요.");
-            return;
-        }
+        // if (!exerciseNoteId) {
+        //     alert("노트 ID가 없습니다. 날짜를 다시 클릭해주세요.");
+        //     return;
+        // }
 
         // — 수정 모드 로직 —
         try {
             const item = exerciseList[editIndex];
-            const putRes = await axios.put('http://54.180.249.146:8881/api/dashboard/exercise', {
-                exerciseInfoId: item.id,
+            const putRes = await axios.put(`/member/${memberId}`, {
+                exerciseId: item.exerciseId,
                 newMin: 분량
             });
 
-            if (putRes.data.success) {
+            if (putRes.status === 200) {
                 // (1) 서버에서 전체 목록 재조회
-                const listRes = await axios.post('http://54.180.249.146:8881/api/dashboard/exercises', {
+                const listRes = await axios.post(`/exercises/member/${memberId}`, {
                     exerciseDate: selectedDate
                 },
                     {
@@ -491,13 +515,14 @@ document.getElementById('add-exercise-btn').addEventListener('click', async func
                 );
                 const serverList = listRes.data || [];
                 exerciseList = serverList.map(e => ({
-                    id: e.exerciseInfoId,
+                    exerciseId: e.exerciseId,
                     name: e.exerciseName,
                     amount: `${e.exerciseMin}분`,
                     cal: e.exerciseKcal
                 }));
                 exerciseMap[selectedDate] = exerciseList;
                 renderExerciseList();
+
 
                 // (2) 달력 이벤트 업데이트
                 const updatedTotal = exerciseList.reduce((sum, it) => sum + it.cal, 0);
@@ -540,21 +565,21 @@ document.getElementById('add-exercise-btn').addEventListener('click', async func
         alert("분량(분)을 올바르게 입력해주세요.");
         return;
     }
-    if (!exerciseNoteId) {
-        alert("노트 ID가 없습니다. 날짜를 다시 클릭해주세요.");
-        return;
-    }
+    // if (!exerciseNoteId) {
+    //     alert("노트 ID가 없습니다. 날짜를 다시 클릭해주세요.");
+    //     return;
+    // }
 
     // — 신규 등록 모드 로직 —
     const requestBody = {
-        exerciseNoteId: exerciseNoteId,
+        exerciseDate: selectedDate,
         exerciseName: 운동명,
         exerciseMin: 분량,
         met: 분당메트
     };
 
     try {
-        const postRes = await axios.post('http://54.180.249.146:8881/api/dashboard/exercise', requestBody,
+        const postRes = await axios.post(`/member/${memberId}`, requestBody,
             {
                 headers: {
                     'selfitKosta': localStorage.auth
@@ -563,9 +588,9 @@ document.getElementById('add-exercise-btn').addEventListener('click', async func
             }
         );
 
-        if (postRes.data.success) {
+        if (postRes.status === 200) {
             // (1) 저장 성공 시 서버에서 전체 목록 재조회
-            const listRes = await axios.post('http://54.180.249.146:8881/api/dashboard/exercises', {
+            const listRes = await axios.post(`/exercises/member/${memberId}`, {
                 exerciseDate: selectedDate
             },
                 {
@@ -577,7 +602,7 @@ document.getElementById('add-exercise-btn').addEventListener('click', async func
             );
             const serverList = listRes.data || [];
             exerciseList = serverList.map(e => ({
-                id: e.exerciseInfoId,
+                exerciseId: e.exerciseId,
                 name: e.exerciseName,
                 amount: `${e.exerciseMin}분`,
                 cal: e.exerciseKcal
@@ -682,7 +707,7 @@ document.getElementById('confirm-delete-btn').addEventListener('click', async fu
     if (itemToDelete === null) return;
     const item = exerciseList[itemToDelete];
     try {
-        await axios.delete('http://54.180.249.146:8881/api/dashboard/exercise', { data: { exerciseInfoId: item.id } });
+        await axios.delete(`/member/${memberId}`, { data: { exerciseId: item.exerciseId } });
 
         // (1) 로컬 배열에서 제거
         exerciseList.splice(itemToDelete, 1);

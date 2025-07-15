@@ -1,3 +1,31 @@
+function parseJwtMemberId(token) {
+    if (!token) return null;
+    try {
+        const base64Url = token.split('.')[1];
+        const base64    = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const json      = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(json).memberId;
+    } catch (e) {
+        console.error('Invalid JWT:', e);
+        return null;
+    }
+}
+const token = localStorage.getItem('auth');
+if ( token === null ) {
+    location.replace('/html/account/login.html');
+}
+
+const memberId  = parseJwtMemberId(token);
+if (!memberId) {
+    localStorage.removeItem('auth');
+    location.replace('/html/account/login.html');
+}
+
 let calendar;
 let currentSelectedDate = null;
 let currentChecklistId = null;
@@ -7,13 +35,10 @@ let checklistList = [];
 let editIndex = null;
 let itemToDeleteIndex = null;
 
-const memberId = reponse.headers('memberId');
+
 // Axios 기본 설정
-const token = localStorage.getItem('auth');
-if ( token === null ) {
-    location.replace('/html/account/login.html');
-}
-axios.defaults.baseURL = 'http://127.0.0.1:7007/api/checklist-service';
+document.addEventListener('DOMContentLoaded', async () => {
+axios.defaults.baseURL = 'http://127.0.0.1:8000/api/checklist-service';
 axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.withCredentials = true;
@@ -158,23 +183,23 @@ document.getElementById('close-panel-btn').addEventListener('click', async () =>
     document.getElementById('check-panel').style.display = 'none';
 
     // 체크 항목이 없고 checklistId가 있을 경우만 삭제
-    if (checklistList.length === 0 && currentChecklistId) {
-        try {
-            await axios.delete(`/item/checklist/member/${memberId}`, {
-                data: { checklistDate: currentSelectedDate }  // ✅ 객체로 감싸서 보냄
-            });
-
-            // 프론트에서 데이터 제거
-            delete checklistData[currentSelectedDate];
-            delete checklistIdMap[currentSelectedDate];
-
-            // 달력 리렌더링
-            calendar.refetchEvents();
-        } catch (err) {
-            console.error('체크리스트 삭제 실패:', err);
-            alert('체크리스트 삭제 중 오류가 발생했습니다.');
-        }
-    }
+    // if (checklistList.length === 0 && currentChecklistId) {
+    //     try {
+    //         await axios.delete(`/item/checklist/member/${memberId}`, {
+    //             data: { checklistId: currentChecklistId }  // ✅ 객체로 감싸서 보냄
+    //         });
+    //
+    //         // 프론트에서 데이터 제거
+    //         delete checklistData[currentSelectedDate];
+    //         delete checklistIdMap[currentSelectedDate];
+    //
+    //         // 달력 리렌더링
+    //         calendar.refetchEvents();
+    //     } catch (err) {
+    //         console.error('체크리스트 삭제 실패:', err);
+    //         alert('체크리스트 삭제 중 오류가 발생했습니다.');
+    //     }
+    // }
 
     // 상태 초기화
     currentSelectedDate = null;
@@ -246,68 +271,55 @@ async function onDeleteConfirmed() {
 }
 
 // 날짜 클릭 핸들러: 패널 열고 상세 로드
-async function onDateClick(info) {
-    currentSelectedDate = info.dateStr;
+    async function onDateClick(info) {
+        currentSelectedDate = info.dateStr;
 
-    document.getElementById('panel-date').innerText = currentSelectedDate.replace(/-/g, '.');
-    document.getElementById('check-panel').style.display = 'block';
-    editIndex = null;
-    document.getElementById('add-check-btn').innerText = '등록';
-    document.getElementById('check-name').value = '';
+        // ─ UI 초기화 ─────────────────────────────────────
+        document.getElementById('panel-date').innerText = currentSelectedDate.replace(/-/g, '.');
+        document.getElementById('check-panel').style.display = 'block';
+        editIndex = null;
+        document.getElementById('add-check-btn').innerText = '등록';
+        document.getElementById('check-name').value = '';
+        // ────────────────────────────────────────────────
 
-    try {
-        // 1. 항목 요청
-        const itemsRes = await axios.post(`/member/${memberId}`, {
-            checklistDate: currentSelectedDate
-        });
+        try {
+            /* 1) 당일 체크리스트-아이템 조회 */
+            const itemsRes = await axios.post(`/member/${memberId}`, {
+                checklistDate: currentSelectedDate
+            });
 
-        checklistList = itemsRes.data.map(item => ({
-            id: item.id,
-            checklistId: item.checklistId,
-            text: item.checklistContent,
-            completed: item.isChecked === 1
-        }));
-        checklistData[currentSelectedDate] = checklistList;
+            checklistList = itemsRes.data.map(i => ({
+                id          : i.id,
+                checklistId : i.checklistId,
+                text        : i.checklistContent,
+                completed   : i.isChecked === 1
+            }));
+            checklistData[currentSelectedDate] = checklistList;
 
-        if (checklistList.length > 0) {
-            // ✅ 항목이 있으므로 checklistId 추출
-            currentChecklistId = checklistList[0].checklistId;
-            checklistIdMap[currentSelectedDate] = currentChecklistId;
-        } else {
-            // ✅ 항목 없음
-
-            if (checklistIdMap[currentSelectedDate]) {
-                // ✅ 기존에 저장한 checklistId 사용
+            /* 2) checklistId 결정 */
+            if (checklistList.length > 0) {
+                // (기존) 이미 아이템이 있으면 그 id 사용
+                currentChecklistId = checklistList[0].checklistId;
+            } else if (checklistIdMap[currentSelectedDate]) {
+                // (기존) 과거에 생성된 머리글이 캐시에 있으면 사용
                 currentChecklistId = checklistIdMap[currentSelectedDate];
             } else {
-                // ✅ 재조회: 항목은 없지만 checklist만 DB에 있을 수도 있으니 재요청해서 확인
-                const retryRes = await axios.post(`/member/${memberId}`, {
+                // ⭐ 새 날짜라면 머리글(checklist) 먼저 생성
+                const createRes      = await axios.post(`/member/${memberId}`, {
                     checklistDate: currentSelectedDate
                 });
-
-                const retryList = retryRes.data;
-                if (retryList.length > 0) {
-                    currentChecklistId = retryList[0].checklistId;
-                    checklistIdMap[currentSelectedDate] = currentChecklistId;
-                } else {
-                    // // ✅ checklist도 항목도 없음 → 새로 생성
-                    // const createRes = await axios.post(`/item/member/${memberId}`, {
-                    //     checklistDate: currentSelectedDate
-                    // });
-                    // currentChecklistId = createRes.data.id ?? createRes.data;
-                    // checklistIdMap[currentSelectedDate] = currentChecklistId;
-                }
+                currentChecklistId   = createRes.data;
+                checklistIdMap[currentSelectedDate] = currentChecklistId;
             }
-        }
 
-        renderChecklistList();
-    } catch (err) {
-        console.error('[onDateClick] 오류 발생:', err);
+            renderChecklistList();
+        } catch (err) {
+            console.error('[onDateClick] 오류:', err);
+        }
     }
-}
 
 // 초기화 및 FullCalendar 설정
-document.addEventListener('DOMContentLoaded', async () => {
+
     const calendarEl = document.getElementById('calendar');
     if (!calendarEl) return;
     calendar = new FullCalendar.Calendar(calendarEl, {
