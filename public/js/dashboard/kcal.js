@@ -1,8 +1,29 @@
-// kcal.js
+
+// kcal.js (백엔드 연동 통합 버전, 수정판)
 document.addEventListener('DOMContentLoaded', () => {
     const auth = localStorage.getItem('auth');
     if (auth === null) {
         location.replace('/html/account/login.html');
+    }
+    // JWT에서 memberId 추출
+    function getMemberIdFromToken() {
+        try {
+            const payload = auth.split('.')[1];
+            const decoded = JSON.parse(atob(payload));
+            return decoded.memberId;
+        } catch (err) {
+            console.error("❌ JWT 파싱 실패:", err);
+            return null;
+        }
+    }
+
+    // 전역 memberId 변수 설정
+    window.memberId = getMemberIdFromToken();
+
+    if (!window.memberId) {
+        alert("memberId가 토큰에 존재하지 않습니다.");
+        location.replace("/html/account/login.html");
+        return;
     }
 });
 // -----------------------------
@@ -46,9 +67,8 @@ axios.defaults.withCredentials = true;
 // --------------------------------------------------
 async function fetchBmr() {
     try {
-        const res = await axios.post(
-            "http://54.180.249.146:8881/api/dashboard/bmr",
-            {},
+        const res = await axios.get(
+            `http://127.0.0.1:8000/api/member-service/member/${memberId}`,
             {
                 headers: {
                     'selfitKosta': localStorage.auth
@@ -69,8 +89,8 @@ async function fetchBmr() {
 // --------------------------------------------------
 async function fetchYearIntake(year) {
     try {
-        const res = await axios.post("http://54.180.249.146:8881/api/dashboard/food/kcal/year", {
-            intakeYear: year,
+        const res = await axios.post(`http://127.0.0.1:8000/api/food-service/kcal/year/member/${memberId}`, {
+            year: year,
         },{
                 headers: {
                     'selfitKosta': localStorage.auth
@@ -78,7 +98,11 @@ async function fetchYearIntake(year) {
 
             }
         );
-        return res.data; // [{ intakeDate, intakeSum }, ...]
+
+        return res.data.map(item => ({
+            intakeDate: new Date(item.intakeDate).toISOString().split('T')[0],
+            intakeSum: item.intakeKcalSum ?? 0
+        }));
     } catch (err) {
         throw new Error("연도별 섭취 데이터 조회 실패");
     }
@@ -86,8 +110,8 @@ async function fetchYearIntake(year) {
 
 async function fetchYearExercise(year) {
     try {
-        const res = await axios.post("http://54.180.249.146:8881/api/dashboard/exercise/kcal/year", {
-            exerciseYear: year,
+        const res = await axios.post(`http://127.0.0.1:8000/api/exercise-service/year/member/${memberId}`, {
+            year: year,
         },{
                 headers: {
                     'selfitKosta': localStorage.auth
@@ -106,7 +130,7 @@ async function fetchYearExercise(year) {
 // --------------------------------------------------
 async function fetchDateIntake(dateStr) {
     try {
-        const res = await axios.post("http://54.180.249.146:8881/api/dashboard/food/kcal", {
+        const res = await axios.post(`http://127.0.0.1:8000/api/food-service/kcal/member/${memberId}`, {
             intakeDate: dateStr,
         },{
                 headers: {
@@ -115,7 +139,13 @@ async function fetchDateIntake(dateStr) {
 
             }
         );
-        return res.data; // { intakeDate, intakeSum }
+        const date = new Date(dateStr).toISOString().split('T')[0];
+        const intakeSum = res.data.intakeKcalSum ?? 0;
+
+        return {
+            date,
+            intakeSum
+        }; // { intakeDate, intakeSum }
     } catch (err) {
         throw new Error("해당 날짜 섭취 데이터 조회 실패");
     }
@@ -123,7 +153,7 @@ async function fetchDateIntake(dateStr) {
 
 async function fetchDateExercise(dateStr) {
     try {
-        const res = await axios.post("http://54.180.249.146:8881/api/dashboard/exercise/kcal", {
+        const res = await axios.post(`http://127.0.0.1:8000/api/exercise-service/kcal/member/${memberId}`, {
             exerciseDate: dateStr,
         },{
                 headers: {
