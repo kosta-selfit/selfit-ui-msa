@@ -5,6 +5,9 @@ import { storage } from './firebaseConfig.js';
 axios.defaults.baseURL = 'http://127.0.0.1:8000';
 console.log('boardForm.js 진입');
 // axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+const CATEGORIES = ['식단', '운동', '자유'];
+
 // JWT 디코딩 함수
 function decodeJwt(token) {
     const jwt = token.startsWith('Bearer ') ? token.substring(7) : token;
@@ -31,29 +34,18 @@ try {
     memberId = null;
 }
 
-console.log('boardId :', boardId);
-console.log('memberId :', memberId);
-
-
 function populateCategorySelect(selectedCategory = null) {
     const selectEl = document.getElementById('categorySelect');
-    // 1) 사이드바 메뉴에서 .category-item 텍스트를 읽어와 배열로 만듦
-    const sidebarItems = document.querySelectorAll(
-        '.sideBar .menu-item.has-children[data-group="community"] .submenu-item'
-    );    const categories = Array.from(sidebarItems).map(item =>
-        item.textContent.trim()
-    );
-    // 2) select 초기화
     selectEl.innerHTML = `<option value="">카테고리를 선택하세요</option>`;
-    // 3) 옵션 생성
-    categories.forEach(name => {
+    CATEGORIES.forEach(name => {
         const opt = document.createElement('option');
-        opt.value = name;
+        opt.value       = name;
         opt.textContent = name;
         if (name === selectedCategory) opt.selected = true;
-        selectEl.append(opt);
+        selectEl.appendChild(opt);
     });
 }
+
 // 해시에서 path, query 파라미터 파싱
 function parseHashParams() {
     const [path, qs] = window.location.hash.slice(1).split('?');
@@ -65,7 +57,7 @@ function parseHashParams() {
     const { path, params } = parseHashParams();
     const categoryNameParam = params.get('categoryName') || null;
     const boardId           = params.get('boardId')       || null;
-    const isEditMode    = path.startsWith('/board/edit');
+    const isEditMode    = path.startsWith('/board-service/edit');
 
     // DOM 요소
     const formTitle       = document.getElementById('form-title');
@@ -196,7 +188,7 @@ function parseHashParams() {
                 });
 
                 alert('게시글 등록 성공');
-                location.hash = `/board-service/list/${encodeURIComponent(categorySelect.value)}`;
+                location.hash = `/board-service/list?categoryName=${encodeURIComponent(categorySelect.value)}`;
             } catch (err) {
                 console.error('등록 실패', err);
                 alert('새 글 등록에 실패했습니다.');

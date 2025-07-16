@@ -1,5 +1,30 @@
 import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
 
+function decodeJwt(token) {
+    const jwt = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const parts = jwt.split('.');
+    if (parts.length !== 3) throw new Error('잘못된 JWT 형식');
+    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = payloadB64.length % 4;
+    const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64;
+    const json = atob(padded);
+    return JSON.parse(json);
+}
+
+const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+const boardId = hashParams.get('boardId');
+const token   = localStorage.getItem('auth');        // "Bearer eyJh..."
+
+// JWT 페이로드에서 memberId 추출
+let memberId;
+try {
+    const payload = decodeJwt(token);
+    memberId = payload.memberId;
+} catch (e) {
+    console.error('JWT 디코딩 실패', e);
+    memberId = null;
+}
+
 export async function initHeader() {
     await fetchMemberInfo();
     await initCategoryList();
@@ -60,8 +85,8 @@ async function fetchMemberInfo() {
     const loginBtn   = document.querySelector('.login-btn');
 
     try {
-        const response = await axios.get('http://54.180.249.146:8881/api/account/member', {
-            headers: { 'selfitKosta': localStorage.auth }
+        const response = await axios.get(`http://127.0.0.1:8000/api/member-service/member/${memberId}`, {
+             headers: { selfitKosta: token.startsWith('Bearer ') ? token : `Bearer ${token}` }
         });
         updateUserInfo(response.data);
 
@@ -82,7 +107,7 @@ function bindAllDataLinks() {
         el.addEventListener('click', () => {
             // SPA 내에서 community 쪽은 해시만 바꾸고
             if (el.closest('[data-group="community"]')) {
-                const h = el.getAttribute('data-href').match(/categoryId=\d+/)[0];
+                const h = el.getAttribute('data-href').match(/categoryName=\d+/)[0];
                 location.hash = `/board-service/list?${h}`;
             }
             // 그 외에는 그냥 href 로 이동
