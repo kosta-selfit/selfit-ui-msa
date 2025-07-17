@@ -1,7 +1,7 @@
 
 $(document).ready(() => {
     // 로그인 버튼 클릭 이벤트
-    const basicDomain = "http://127.0.0.1:8000";
+    const basicDomain = "http://192.168.0.8:8000";
 
     const redirect_url = "/html/dashboard/dashboard.html"
     $("#loginBtn").on("click", () => {
