@@ -25,7 +25,7 @@ $(document).ready(() => {
 
     // 구글 로그인 팝업 열기 함수
     function openGoogleLoginPopup() {
-        const authUrl = baseUrl + "/oauth2/authorization/google"
+        const authUrl = baseUrl +  "/oauth2/authorization/google"
         const popupWidth = 500
         const popupHeight = 600
         const left = (window.innerWidth - popupWidth) / 2

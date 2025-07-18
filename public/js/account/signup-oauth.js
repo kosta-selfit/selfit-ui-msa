@@ -377,7 +377,7 @@ async function handleNicknameDuplicateCheck() {
     try {
         const response = await checkNicknameDuplicateAPI(formState.nickname.value);
 
-        if (response.message === "false") {
+        if (response.message === 'false') {
             formState.nickname.checked = true;
             $nicknameCheck.addClass('checked');
             $nicknameCheck.find('.btn-text').text('확인완료');
@@ -426,11 +426,12 @@ async function handleSignup() {
         if (response.message === 'success') {
             sessionStorage.removeItem(emailKey);
             sessionStorage.removeItem(nameKey);
-            axios.post(API_BASE_URL + '/login-process', {
+            axios.post(baseUrl + '/api/member-service/login-process', {
                 email: userData.email,
                 memberType: userData.memberType
             })
                 .then(response => {
+                    console.log(response);
                     localStorage.auth = response.headers.selfitkosta;
                 })
                 .catch(error => {
