@@ -1,3 +1,5 @@
+import { baseUrl } from './common.js';
+axios.defaults.baseURL = baseUrl;
 document.addEventListener('DOMContentLoaded', function () {
     const featureCards = document.querySelectorAll('.feature-card');
 
@@ -11,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             } else if (action === 'community') {
                 // 1) API에서 카테고리 목록 받아오기
-                axios.get('http://54.180.249.146:8881/api/category')
+                axios.get('/api/category')
                     .then(res => {
                         const categories = res.data;
                         if (!categories.length) {

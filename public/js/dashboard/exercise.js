@@ -1,4 +1,5 @@
 // exercise.js
+import { baseUrl } from '../common.js';
 function parseJwtMemberId(token) {
     if (!token) return null;
     try {
@@ -26,8 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // -----------------------------
 // Axios 기본 설정
 // -----------------------------
-const BASE = 'http://127.0.0.1:8000/api/exercise-service';
-axios.defaults.baseURL = BASE;
+axios.defaults.baseURL = baseUrl + '/api/exercise-service';
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['selfitKosta'] = localStorage.auth;

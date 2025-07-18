@@ -1,9 +1,10 @@
 import {showAlertModal, showErrorModal, showSuccessModal} from './basic-modal.js';
 import {getDownloadURL, ref, uploadBytes} from "https://www.gstatic.com/firebasejs/11.8.1/firebase-storage.js";
 import {storage} from "../board/firebaseConfig.js";
+import { baseUrl } from '../common.js';
 
 // API 엔드포인트 설정
-const API_BASE_URL = "http://127.0.0.1:8000/api"
+
 const memberId = parseJwt(localStorage.auth);
 
 function parseJwt(token) {
@@ -68,7 +69,7 @@ let profileImageUpload = {
 
 async function getMemberInfoAPI() {
     try {
-        const response = await axios.get(`${API_BASE_URL}/member-service/member/${memberId}`, {
+        const response = await axios.get(`${baseUrl}/api/member-service/member/${memberId}`, {
             timeout: 10000,
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
@@ -92,7 +93,7 @@ async function checkNicknameDuplicateAPI(nickname) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/member-service/check-nickname`, requestData, {
+        const response = await axios.post(`${baseUrl}/api/member-service/check-nickname`, requestData, {
             timeout: 10000,
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,
@@ -111,7 +112,7 @@ async function checkNicknameDuplicateAPI(nickname) {
 
 async function updateMemberAPI(userData) {
     try {
-        const response = await axios.put(`${API_BASE_URL}/member-service/member/${memberId}`, userData, {
+        const response = await axios.put(`${baseUrl}/api/member-service/member/${memberId}`, userData, {
             timeout: 15000,
             headers: {
                 selfitKosta: `Bearer ${localStorage.auth}`,

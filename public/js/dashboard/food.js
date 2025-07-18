@@ -1,4 +1,5 @@
 // food.js (백엔드 연동 통합 버전, 수정판)
+import { baseUrl } from '../common.js';
 document.addEventListener('DOMContentLoaded', () => {
     const auth = localStorage.getItem('auth');
     if (auth === null) {
@@ -28,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // -----------------------------
 // Axios 기본 설정
 // -----------------------------
-axios.defaults.baseURL = 'http://127.0.0.1:8000/api/food-service';
+axios.defaults.baseURL = baseUrl + '/api/food-service';
 axios.defaults.headers.common['Content-Type'] = "application/json";
 axios.defaults.withCredentials = true;
 

@@ -2,9 +2,10 @@
 import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
 import { getDownloadURL, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-storage.js';
 import { storage } from './firebaseConfig.js';
-axios.defaults.baseURL = 'http://127.0.0.1:8000';
+import { baseUrl } from '../common.js';
+axios.defaults.baseURL = baseUrl;
 console.log('boardForm.js 진입');
-// axios.defaults.headers.common['Content-Type'] = 'application/json';
+//axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 const CATEGORIES = ['식단', '운동', '자유'];
 

@@ -85,7 +85,7 @@ async function fetchMemberInfo() {
     const loginBtn   = document.querySelector('.login-btn');
 
     try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/member-service/member/${memberId}`, {
+        const response = await axios.get(`http://192.168.0.8:8000/api/member-service/member/${memberId}`, {
              headers: { selfitKosta: token.startsWith('Bearer ') ? token : `Bearer ${token}` }
         });
         updateUserInfo(response.data);

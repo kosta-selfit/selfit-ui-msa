@@ -1,3 +1,5 @@
+import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
+import { baseUrl } from '../common.js';
 document.addEventListener("DOMContentLoaded", () => {
     const ApexCharts = window.ApexCharts;
     // axios가 전역에 import/로드되어 있다고 가정합니다.
@@ -32,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
         location.replace('/html/account/login.html');
     }
 
-    axios.defaults.baseURL = 'http://127.0.0.1:8000/api';
+    axios.defaults.baseURL = baseUrl + '/api';
     axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
     axios.defaults.headers.common['Content-Type'] = 'application/json';
     axios.defaults.withCredentials = true;

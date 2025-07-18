@@ -1,5 +1,5 @@
-
 // kcal.js (백엔드 연동 통합 버전, 수정판)
+import { baseUrl } from '../common.js';
 document.addEventListener('DOMContentLoaded', () => {
     const auth = localStorage.getItem('auth');
     if (auth === null) {
@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // -----------------------------
 // 1) 공통: Axios 기본 설정
 // -----------------------------
+axios.defaults.baseURL = baseUrl + '/api';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.withCredentials = true;
 // -----------------------------
@@ -68,7 +69,7 @@ axios.defaults.withCredentials = true;
 async function fetchBmr() {
     try {
         const res = await axios.get(
-            `http://127.0.0.1:8000/api/member-service/member/${memberId}`,
+            `/member-service/member/${memberId}`,
             {
                 headers: {
                     'selfitKosta': localStorage.auth
@@ -89,7 +90,7 @@ async function fetchBmr() {
 // --------------------------------------------------
 async function fetchYearIntake(year) {
     try {
-        const res = await axios.post(`http://127.0.0.1:8000/api/food-service/kcal/year/member/${memberId}`, {
+        const res = await axios.post(`/food-service/kcal/year/member/${memberId}`, {
             year: year,
         },{
                 headers: {
@@ -110,7 +111,7 @@ async function fetchYearIntake(year) {
 
 async function fetchYearExercise(year) {
     try {
-        const res = await axios.post(`http://127.0.0.1:8000/api/exercise-service/year/member/${memberId}`, {
+        const res = await axios.post(`/exercise-service/year/member/${memberId}`, {
             year: year,
         },{
                 headers: {
@@ -130,7 +131,7 @@ async function fetchYearExercise(year) {
 // --------------------------------------------------
 async function fetchDateIntake(dateStr) {
     try {
-        const res = await axios.post(`http://127.0.0.1:8000/api/food-service/kcal/member/${memberId}`, {
+        const res = await axios.post(`/food-service/kcal/member/${memberId}`, {
             intakeDate: dateStr,
         },{
                 headers: {
@@ -153,7 +154,7 @@ async function fetchDateIntake(dateStr) {
 
 async function fetchDateExercise(dateStr) {
     try {
-        const res = await axios.post(`http://127.0.0.1:8000/api/exercise-service/kcal/member/${memberId}`, {
+        const res = await axios.post(`/exercise-service/kcal/member/${memberId}`, {
             exerciseDate: dateStr,
         },{
                 headers: {
