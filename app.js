@@ -1,17 +1,18 @@
-// app.js
-require('dotenv').config();
 const express = require('express');
 const path = require('path');
-
 const app = express();
 
-// public/ 폴더 안의 정적 자원 서빙
+// ✅ 정적 파일 먼저!
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SPA 용: 정적 파일에 매핑되지 않는 모든 경로를 메인 HTML로 포워딩
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/html/index.html'));
+// ✅ 존재하지 않는 HTML 경로 요청만 spa.html로 대응 (SPA용)
+app.get(['/', '/dashboard', '/board', '/account'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'html', 'spa.html'));
 });
 
-// bin/www 에서 이 app을 불러다 쓰도록 export
+// ❗ 404 처리 (선택)
+app.use((req, res) => {
+    res.status(404).send('페이지를 찾을 수 없습니다.');
+});
+
 module.exports = app;

@@ -1,21 +1,53 @@
 import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
+import { baseUrl } from '../common.js';
 console.log('board.js 진입');
 
-axios.defaults.baseURL = 'http://54.180.249.146:8881';
-axios.defaults.headers.common['Content-Type'] = 'application/json';
+// axios.defaults.baseURL = 'http://54.180.249.146:8881';
+axios.defaults.baseURL = baseUrl;
+// axios.defaults.headers.common['Content-Type'] = 'application/json';
+// JWT 디코딩 함수
+function decodeJwt(token) {
+    const jwt = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const parts = jwt.split('.');
+    if (parts.length !== 3) throw new Error('잘못된 JWT 형식');
+    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = payloadB64.length % 4;
+    const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64;
+    const json = atob(padded);
+    return JSON.parse(json);
+}
+
+const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+const boardId = hashParams.get('boardId');
+const token   = localStorage.getItem('auth');        // "Bearer eyJh..."
+
+// JWT 페이로드에서 memberId 추출
+let memberId;
+try {
+    const payload = decodeJwt(token);
+    memberId = payload.memberId;
+} catch (e) {
+    console.error('JWT 디코딩 실패', e);
+    memberId = null;
+}
+
+console.log('boardId :', boardId);
+console.log('memberId :', memberId);
 
 (async function initBoard() {
-    // — 해시 파라미터 파싱
-    function parseHash() {
-        const [, q = ''] = window.location.hash.split('?');
-        return new URLSearchParams(q);
-    }
-    const hashParams = parseHash();
-    const categoryId   = parseInt(hashParams.get('categoryId'), 10) || 2;
+ function getCategoryNameFromHash() {
+     const hash = window.location.hash;
+     const match = hash.match(/categoryName=([^/]+)/);
+     return match
+        ? decodeURIComponent(match[1])
+         :'';
+}
+const categoryName  = getCategoryNameFromHash();
+ console.log("현재 카테고리 : ", categoryName)
 
     // — 상태
     let currentPage    = 1;
-    let currentSort    = 'recent';
+    let currentSort    = 'asc';
     let currentKeyword = '';
     const pageSize     = 10;
 
@@ -46,28 +78,30 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
     }
     sortRadios.forEach(radio => {
         radio.addEventListener('change', () => {
-            currentSort = (radio.value === '조회순' ? 'views' : 'recent');
+            currentSort = (radio.value === '조회순' ? 'views' : 'asc');
             currentPage = 1;
             fetchAndRender();
         });
     });
     if (writeBtn) {
         writeBtn.addEventListener('click', () => {
-            window.location.hash = `/board/write?categoryId=${categoryId}`;
+            window.location.hash = `/board-service/write?categoryName=${encodeURIComponent(categoryName)}`;
         });
     }
 
     // — 데이터 가져와 렌더링
     async function fetchAndRender() {
         try {
-            const res = await axios.get('/api/board/list', {
+            const res = await axios.get('/api/board-service/list', {
                 params: {
-                    categoryId,
-                    page:    currentPage,
-                    keyword: currentKeyword,
-                    sortOrder: currentSort
-                }
+                    page: currentPage,
+                    categoryName,
+                    sortOrder: currentSort,
+                    keyword: currentKeyword
+                },
+
             });
+            console.log('fetch URL:', res.config.url);
             const boards    = res.data;
             const totalItems = boards.length ? boards[0].totalCount : 0;
 
@@ -76,11 +110,14 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
                 titleEl.textContent = boards[0].categoryName;
             }
 
+            console.log(boards);
             renderList(boards);
             renderPagination(totalItems);
         } catch (err) {
             console.error('게시글 로드 실패', err);
-            listContainer.innerHTML = '<p class="text-center">게시글을 불러올 수 없습니다.</p>';
+            if (listContainer) {
+                listContainer.innerHTML = '<p class="text-center">게시글을 불러올 수 없습니다.</p>';
+            }
         }
     }
 
@@ -98,7 +135,7 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
             item.className = 'board-item d-flex align-items-center py-2';
             item.innerHTML = `
         <div class="flex-fill">
-          <a href="#/board/detail?boardId=${b.boardId}&categoryId=${categoryId}">
+          <a href="#/board-service/detail?boardId=${b.boardId}&categoryName=${encodeURIComponent(categoryName)}">
             ${b.boardTitle}
           </a>
         </div>

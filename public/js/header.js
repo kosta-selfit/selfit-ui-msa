@@ -1,13 +1,40 @@
 import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
 
+function decodeJwt(token) {
+    const jwt = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const parts = jwt.split('.');
+    if (parts.length !== 3) throw new Error('잘못된 JWT 형식');
+    const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = payloadB64.length % 4;
+    const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64;
+    const json = atob(padded);
+    return JSON.parse(json);
+}
+
+const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+const boardId = hashParams.get('boardId');
+const token   = localStorage.getItem('auth');        // "Bearer eyJh..."
+
+// JWT 페이로드에서 memberId 추출
+let memberId;
+try {
+    const payload = decodeJwt(token);
+    memberId = payload.memberId;
+} catch (e) {
+    console.error('JWT 디코딩 실패', e);
+    memberId = null;
+}
+
 export async function initHeader() {
     await fetchMemberInfo();
-    await fetchCategoryList();
+    await initCategoryList();
     openGroupByURL();
     setActiveDashboardItem();
     bindMenuLabelToggle();
     bindAuthButtons();
     bindAllDataLinks();
+
+    console.log('bindMenuLabelToggle:', document.querySelector('.sideBar'));
 }
 
 // 로그아웃 기능
@@ -58,8 +85,8 @@ async function fetchMemberInfo() {
     const loginBtn   = document.querySelector('.login-btn');
 
     try {
-        const response = await axios.get('http://54.180.249.146:8881/api/account/member', {
-            headers: { 'selfitKosta': localStorage.auth }
+        const response = await axios.get(`http://192.168.0.8:8000/api/member-service/member/${memberId}`, {
+             headers: { selfitKosta: token.startsWith('Bearer ') ? token : `Bearer ${token}` }
         });
         updateUserInfo(response.data);
 
@@ -80,8 +107,8 @@ function bindAllDataLinks() {
         el.addEventListener('click', () => {
             // SPA 내에서 community 쪽은 해시만 바꾸고
             if (el.closest('[data-group="community"]')) {
-                const h = el.getAttribute('data-href').match(/categoryId=\d+/)[0];
-                location.hash = `/board/list?${h}`;
+                const h = el.getAttribute('data-href').match(/categoryName=\d+/)[0];
+                location.hash = `/board-service/list?${h}`;
             }
             // 그 외에는 그냥 href 로 이동
             else {
@@ -97,7 +124,7 @@ function openGroupByURL() {
     document.querySelectorAll('.menu-item.has-children').forEach(item => {
         const grp = item.dataset.group;
         const sub = item.querySelector('.submenu');
-        if ((grp === 'community' && path.includes('/board/')) ||
+        if ((grp === 'community' && path.includes('/board-service/')) ||
             (grp === 'dashboard' && path.startsWith('/dashboard/'))) {
             item.classList.add('open','active');
             if (sub) sub.style.maxHeight = sub.scrollHeight + 'px';
@@ -118,35 +145,38 @@ function setActiveDashboardItem() {
     });
 }
 
-// Community 카테고리 목록
-function fetchCategoryList() {
-    return axios.get('http://54.180.249.146:8881/api/category')
-        .then(res => {
-            const list = res.data;
-            const menu = document.querySelector('[data-group="community"] .submenu');
-            if (!menu) return;
-            menu.innerHTML = '';
+const CATEGORIES = [
+    { categoryName: '식단' },
+    { categoryName: '운동' },
+    { categoryName: '자유' },
+];
 
-            list.forEach(cat => {
-                const d = document.createElement('div');
-                d.className   = 'submenu-item';
-                d.textContent = cat.categoryName;
-                d.addEventListener('click', () => {
-                    const isStaticDashboard = window.location.pathname.includes('/dashboard/');
-                    if (isStaticDashboard) {
-                        // 일반 HTML 대시보드에서 SPA로 강제 이동
-                        window.location.href = `/html/spa.html#/board/list?categoryId=${cat.categoryId}`;
-                    } else {
-                        // SPA 내에서 해시만 바꿔서 뷰 전환
-                        location.hash = `/board/list?categoryId=${cat.categoryId}`;
-                    }
-                });
-                menu.appendChild(d);
-            });
-        })
-        .catch(err => {
-            console.error('카테고리 불러오기 실패:', err);
+// Community 카테고리 목록
+function initCategoryList() {
+    const menu = document.querySelector(
+        '.sideBar .menu-item.has-children[data-group="community"] > .submenu'
+    );
+    if (!menu) return;
+    menu.innerHTML = '';
+    console.log(CATEGORIES);
+
+    CATEGORIES.forEach(cat => {
+        const d = document.createElement('div');
+        d.className = 'submenu-item';
+        d.textContent = cat.categoryName;
+
+        d.addEventListener('click', () => {
+            const isStaticDashboard = window.location.pathname.includes('/dashboard/');
+            if (isStaticDashboard) {
+                // 일반 HTML 대시보드에서 SPA로 강제 이동
+                window.location.href = `/html/spa.html#/board-service/list/categoryName=${cat.categoryName}`;
+            } else {
+                // SPA 내에서 해시만 바꿔서 뷰 전환
+                location.hash = `/board-service/list/categoryName=${cat.categoryName}`;
+            }
         });
+        menu.appendChild(d);
+    });
 }
 
 // 메뉴 레이블 토글

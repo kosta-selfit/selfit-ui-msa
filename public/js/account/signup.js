@@ -1,7 +1,7 @@
 import {showAlertModal, showErrorModal, showSuccessModal} from './basic-modal.js';
+import { baseUrl } from '../common.js';
 
 // API 엔드포인트 설정
-const API_BASE_URL = "http://54.180.249.146:8881/api/account"
 const redirect_url = "http://127.0.0.1:8880/html/dashboard/dashboard.html"
 // 폼 상태 관리 (안전한 초기화)
 const formState = {
@@ -36,7 +36,7 @@ async function checkEmailDuplicateAPI(email) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/check-email`, requestData, {
+        const response = await axios.post(`${baseUrl}/api/member-service/check-email`, requestData, {
             timeout: 10000,
             headers: {
                 Accept: "application/json",
@@ -64,7 +64,7 @@ async function checkNicknameDuplicateAPI(nickname) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/check-nickname`, requestData, {
+        const response = await axios.post(`${baseUrl}/api/member-service/check-nickname`, requestData, {
             timeout: 10000,
             headers: {
                 Accept: "application/json",
@@ -113,7 +113,7 @@ async function signupAPI(userData) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/member`, requestData, {
+        const response = await axios.post(`${baseUrl}/api/member-service/member`, requestData, {
             timeout: 15000,
             headers: {
                 Accept: "application/json",
@@ -537,7 +537,7 @@ async function handleEmailDuplicateCheck() {
     try {
         const response = await checkEmailDuplicateAPI(formState.email.value)
 
-        if (!response.result) {
+        if (response.message === 'false') {
             formState.email.checked = true
             $emailCheck.addClass("checked")
             $emailCheck.find(".btn-text").text("확인완료")
@@ -548,7 +548,7 @@ async function handleEmailDuplicateCheck() {
 
             validateForm()
         } else {
-            showError($("#email"), response.message || "이미 사용중인 이메일입니다.")
+            showError($("#email"), "이미 사용중인 이메일입니다.")
         }
     } catch (error) {
         console.error("이메일 중복확인 오류:", error)
@@ -570,7 +570,7 @@ async function handleNicknameDuplicateCheck() {
     try {
         const response = await checkNicknameDuplicateAPI(formState.nickname.value)
 
-        if (!response.result) {
+        if (response.message === 'false') {
             formState.nickname.checked = true
             $nicknameCheck.addClass("checked")
             $nicknameCheck.find(".btn-text").text("확인완료")
@@ -581,7 +581,7 @@ async function handleNicknameDuplicateCheck() {
 
             validateForm()
         } else {
-            showError($("#nickname"), response.message || "이미 사용중인 닉네임입니다.")
+            showError($("#nickname"), "이미 사용중인 닉네임입니다.")
         }
     } catch (error) {
         console.error("닉네임 중복확인 오류:", error)
@@ -616,8 +616,8 @@ async function handleSignup() {
 
         const response = await signupAPI(userData)
 
-        if (response.success) {
-            axios.post('http://54.180.249.146:8881/api/account/login-process', {
+        if (response.message === 'success') {
+            axios.post(baseUrl + '/api/member-service/login-process', {
                 email: userData.email,
                 pw: userData.password,
                 memberType: userData.memberType

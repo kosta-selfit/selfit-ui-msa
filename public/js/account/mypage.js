@@ -1,10 +1,10 @@
 import {showAlertModal, showSuccessModal, showErrorModal} from './basic-modal.js';
+import { baseUrl } from '../common.js';
 // import {response} from "express";
 
 $(() => {
     // API 기본 경로 설정
     var board_api_base = '/board/detail';
-    const baseUrl = 'http://127.0.0.1:8000'
     const memberId = parseJwt(localStorage.auth);
     // 북마크 데이터와 페이지네이션 변수
     let bookmarkData = [];
