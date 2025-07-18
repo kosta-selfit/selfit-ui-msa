@@ -25,7 +25,7 @@ $(function () {
 });
 
 // API 엔드포인트 설정
-const API_BASE_URL = 'http://127.0.0.1:8881/api/account';
+const API_BASE_URL = 'http://127.0.0.1:8000/api/member-service';
 const redirect_url = "http://127.0.0.1:8880/html/dashboard/dashboard.html"
 // 폼 상태 관리 (비밀번호 관련 필드 제거)
 const formState = {
@@ -377,7 +377,7 @@ async function handleNicknameDuplicateCheck() {
     try {
         const response = await checkNicknameDuplicateAPI(formState.nickname.value);
 
-        if (!response.result) {
+        if (response.message === "false") {
             formState.nickname.checked = true;
             $nicknameCheck.addClass('checked');
             $nicknameCheck.find('.btn-text').text('확인완료');
@@ -388,7 +388,7 @@ async function handleNicknameDuplicateCheck() {
 
             validateForm();
         } else {
-            showError($('#nickname'), response.message || '이미 사용중인 닉네임입니다.');
+            showError($('#nickname'),  '이미 사용중인 닉네임입니다.');
         }
     } catch (error) {
         console.error('닉네임 중복확인 오류:', error);
@@ -423,10 +423,10 @@ async function handleSignup() {
 
         const response = await signupAPI(userData);
 
-        if (response.success) {
+        if (response.message === 'success') {
             sessionStorage.removeItem(emailKey);
             sessionStorage.removeItem(nameKey);
-            axios.post('http://127.0.0.1:8881/api/account/login-process', {
+            axios.post(API_BASE_URL + '/login-process', {
                 email: userData.email,
                 memberType: userData.memberType
             })
@@ -439,7 +439,7 @@ async function handleSignup() {
 
             showSuccessModal("회원가입이 완료되었습니다!", redirect_url, true)
         } else {
-            showErrorModal(response.message || "회원가입 중 오류가 발생했습니다.")
+            showErrorModal("회원가입 중 오류가 발생했습니다.")
         }
     } catch (error) {
         showErrorModal("회원가입 중 오류가 발생했습니다.")
