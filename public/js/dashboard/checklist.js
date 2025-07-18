@@ -1,3 +1,7 @@
+import { baseUrl } from '../common.js';
+
+console.log("baseUrl 확인:", baseUrl);
+
 function parseJwtMemberId(token) {
     if (!token) return null;
     try {
@@ -38,7 +42,7 @@ let itemToDeleteIndex = null;
 
 // Axios 기본 설정
 document.addEventListener('DOMContentLoaded', async () => {
-axios.defaults.baseURL = 'http://127.0.0.1:8000/api/checklist-service';
+axios.defaults.baseURL = baseUrl + '/api/checklist-service';
 axios.defaults.headers.common['selfitKosta'] = `Bearer ${token}`;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.withCredentials = true;

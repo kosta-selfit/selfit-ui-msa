@@ -1,7 +1,8 @@
+import axios from 'https://cdn.jsdelivr.net/npm/axios@1.6.8/+esm';
+import { baseUrl } from '../common.js';
 
 $(document).ready(() => {
     // 로그인 버튼 클릭 이벤트
-    const basicDomain = "http://192.168.0.8:8000";
 
     const redirect_url = "/html/dashboard/dashboard.html"
     $("#loginBtn").on("click", () => {
@@ -24,7 +25,7 @@ $(document).ready(() => {
 
     // 구글 로그인 팝업 열기 함수
     function openGoogleLoginPopup() {
-        const authUrl = basicDomain + "/oauth2/authorization/google"
+        const authUrl = baseUrl + "/oauth2/authorization/google"
         const popupWidth = 500
         const popupHeight = 600
         const left = (window.innerWidth - popupWidth) / 2
@@ -103,7 +104,7 @@ $(document).ready(() => {
 
         // Axios 요청 (form-urlencoded 전송)
         axios
-            .post(basicDomain + "/api/member-service/login-process", {
+            .post(baseUrl + "/api/member-service/login-process", {
                 email: loginId,
                 pw: loginPassword,
             })

@@ -1,4 +1,5 @@
 import {showErrorModal, showSuccessModal} from './basic-modal.js';
+import { baseUrl } from '../common.js';
 
 const emailKey = "email"
 const nameKey = "name"
@@ -25,7 +26,6 @@ $(function () {
 });
 
 // API 엔드포인트 설정
-const API_BASE_URL = 'http://127.0.0.1:8881/api/account';
 const redirect_url = "http://127.0.0.1:8880/html/dashboard/dashboard.html"
 // 폼 상태 관리 (비밀번호 관련 필드 제거)
 const formState = {
@@ -54,7 +54,7 @@ async function checkNicknameDuplicateAPI(nickname) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/check-nickname`, requestData, {
+        const response = await axios.post(`${baseUrl}/api/account/check-nickname`, requestData, {
             timeout: 10000,
             headers: {
                 'Accept': 'application/json',
@@ -102,7 +102,7 @@ async function signupAPI(userData) {
 
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/member`, requestData, {
+        const response = await axios.post(`${baseUrl}/api/account/member`, requestData, {
             timeout: 15000,
             headers: {
                 'Accept': 'application/json',

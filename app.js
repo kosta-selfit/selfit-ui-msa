@@ -1,23 +1,18 @@
-// app.js
-
 const express = require('express');
-const path    = require('path');
-const app     = express();
+const path = require('path');
+const app = express();
 
-// public/ 폴더 안의 정적 자원 서빙
+// ✅ 정적 파일 먼저!
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SPA 진입점으로 매핑되지 않은 모든 경로를 spa.html로 포워딩
-app.get('*', (req, res) => {
-  res.sendFile(
-      path.join(__dirname, 'public', 'html', 'spa.html'),
-      err => {
-        if (err) {
-          console.error('spa.html 전송 실패:', err);
-          res.status(500).send('SPA 로드 중 오류 발생');
-        }
-      }
-  );
+// ✅ 존재하지 않는 HTML 경로 요청만 spa.html로 대응 (SPA용)
+app.get(['/', '/dashboard', '/board', '/account'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'html', 'spa.html'));
+});
+
+// ❗ 404 처리 (선택)
+app.use((req, res) => {
+    res.status(404).send('페이지를 찾을 수 없습니다.');
 });
 
 module.exports = app;
